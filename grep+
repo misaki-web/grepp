@@ -1,0 +1,1149 @@
+#!/bin/bash
+
+# grep+ performes grep searches while improving results display. Each result is aligned,
+# has a clickable link to the file at the specific result line number and has syntax
+# highlighting applied to the entire result line.
+# 
+# Run `grep+` without arguments to display help. See the file `README.md` for more details.
+# 
+# Copyright (C) 2021  Misaki F. <https://github.com/misa-ki/grepp>
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+################################################################################
+# CONSTANTS
+################################################################################
+
+# System
+
+SYS_BIN_PATH="$HOME/.local/bin"
+declare -r SYS_BIN_PATH
+
+SYS_CONFIG_PATH=${XDG_CONFIG_HOME:="$HOME/.config"}
+declare -r SYS_CONFIG_PATH
+
+SYS_SHARE_PATH=${XDG_DATA_HOME:="$HOME/.local/share"}
+declare -r SYS_SHARE_PATH
+
+# Executable
+
+SCRIPT_BIN_NAME="grep+"
+declare -r SCRIPT_BIN_NAME
+
+SCRIPT_BIN_PATH="$SYS_BIN_PATH/$SCRIPT_BIN_NAME"
+declare -r SCRIPT_BIN_PATH
+
+# Config
+
+SCRIPT_CONFIG_PATH="$SYS_CONFIG_PATH/$SCRIPT_BIN_NAME/config.ini"
+declare -r SCRIPT_CONFIG_PATH
+
+# Scheme handler
+
+SCHEME_HANDLER_NAME="$SCRIPT_BIN_NAME"
+declare -r SCHEME_HANDLER_NAME
+
+SCHEME_HANDLER_DESKTOP_FILE_PATH="$SYS_SHARE_PATH/applications/$SCHEME_HANDLER_NAME.desktop"
+declare -r SCHEME_HANDLER_DESKTOP_FILE_PATH
+
+# Styles
+
+declare -A STYLES_ALL
+STYLES_ALL=(
+	[bold]=$(tput bold 2> /dev/null)
+	[italic]=$(tput sitm 2> /dev/null)
+	[default]=$(tput sgr0 2> /dev/null)
+)
+
+declare -A STYLES_DARK
+STYLES_DARK=(
+	[file_path]=$'\033[0;37m'
+	[ln_sep]=$'\033[3;37m'
+	[line_number]=$'\033[3;37m'
+	[results_sep]=$'\033[1;30m'
+	[hor_sep]=$'\033[1;30m'
+	[highlight_style]="moria" # Other examples: darkspectrum, edit-vim-dark, relaxedgreen...
+)
+declare -r STYLES_DARK
+
+declare -A STYLES_LIGHT
+STYLES_LIGHT=(
+	[file_path]=$'\033[0;90m'
+	[ln_sep]=$'\033[3;90m'
+	[line_number]=$'\033[3;90m'
+	[results_sep]=$'\033[2;97m'
+	[hor_sep]=$'\033[2;97m'
+	[highlight_style]="edit-gedit" # Other examples: edit-eclipse, edit-gedit, edit-vim...
+)
+declare -r STYLES_LIGHT
+
+declare -A STYLES_GREP_FORMAT_DARK
+STYLES_GREP_FORMAT_DARK=(
+	[results]="0;42;97"
+)
+declare -r STYLES_GREP_FORMAT_DARK
+
+declare -A STYLES_GREP_FORMAT_LIGHT
+STYLES_GREP_FORMAT_LIGHT=(
+	[results]="0;42;97"
+)
+declare -r STYLES_GREP_FORMAT_LIGHT
+
+DEFAULT_PATH_RELATIVE_TO_SEARCH=true
+declare -r DEFAULT_PATH_RELATIVE_TO_SEARCH
+
+LINE_NUMBER_SEP=":"
+declare -r LINE_NUMBER_SEP
+
+DEFAULT_RESULTS_SEPARATOR="%BOX%"
+declare -r DEFAULT_RESULTS_SEPARATOR
+
+DEFAULT_ADD_HORIZONTAL_SEPARATOR=true
+declare -r DEFAULT_ADD_HORIZONTAL_SEPARATOR
+
+DEFAULT_FILE_PATH_FALLBACK=false
+declare -r DEFAULT_FILE_PATH_FALLBACK
+
+################################################################################
+# FUNCTIONS
+################################################################################
+
+# Add the custom scheme handler
+add_scheme() {
+	cat <<- HEREDOC > "$SCHEME_HANDLER_DESKTOP_FILE_PATH"
+		[Desktop Entry]
+		Type=Application
+		Name=$SCHEME_HANDLER_NAME scheme handler
+		Icon=text-editor-symbolic
+		MimeType=x-scheme-handler/$SCHEME_HANDLER_NAME;
+		Exec=$SCRIPT_BIN_PATH --open %u
+		StartupNotify=false
+		Terminal=false
+	HEREDOC
+	
+	update-desktop-database "$SYS_SHARE_PATH/applications"
+	xdg-mime default "$SCHEME_HANDLER_DESKTOP_FILE_PATH" "x-scheme-handler/$SCHEME_HANDLER_NAME"
+}
+
+# Return the terminal background style ("dark" or "light")
+background_style() {
+	local blue color red green style
+	
+	# ------------------
+	
+	color=$(terminal_color background dec)
+	red=${color%% *}
+	green=$(echo -n "$color" | cut -d ' ' -f 2)
+	blue=${color##*,}
+	
+	if awk -v r="$red" -v g="$green" -v b="$blue" 'BEGIN {if ((r * 0.299 + g * 0.587 + b * 0.114) <= 186) exit 0; exit 1}'; then
+		style="dark"
+	else
+		style="light"
+	fi
+	
+	echo -n "$style"
+}
+
+# Decode the scheme handler URL specified in the first argument
+decode_url() {
+	python -c "import sys, urllib as ul; print ul.unquote_plus(sys.argv[1])" "$1"
+}
+
+# Display help
+display_help() {
+	local sep
+	
+	# ------------------
+	
+	sep="${STYLES_ALL[bold]}-----------------------------------------------------------------${STYLES_ALL[default]}"$'\n'
+	
+	cat <<- HEREDOC
+		$SCRIPT_BIN_NAME performes grep searches while improving results display. Each result is aligned,
+		has a clickable link to the file at the specific result line number and has syntax
+		highlighting applied to the entire line.
+		
+		${STYLES_ALL[bold]}USAGE${STYLES_ALL[default]}
+		$sep
+		Type one of the following commands:
+		
+		    ${STYLES_ALL[bold]}$SCRIPT_BIN_NAME SEARCH_PATTERN [EMPLACEMENT]${STYLES_ALL[default]}
+		    $sep
+		    SEARCH_PATTERN can be a regular expression pattern. EMPLACEMENT can be a folder for
+		    recursive search or a specific file. If it's empty, the current folder returned by
+		    the command "pwd" will be used. Example:
+		    
+		        $SCRIPT_BIN_NAME "^function abc_[0-9]+_def\s*\(" "/path/to/folder"
+		    
+		    If you want to search a pattern starting with a $SCRIPT_BIN_NAME parameter (like "--install"),
+		    the optional parameter "--force_search" can be used. Example:
+		    
+		        $SCRIPT_BIN_NAME --force_search "--install" "/path/to/folder"
+		    
+		    
+		    ${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --install${STYLES_ALL[default]}
+		    $sep
+		    Add $SCRIPT_BIN_NAME in the local bin folder. The script will add it automatically if it's not
+		    installed, so it shouldn't be necessary to install it manually.
+		    
+		    
+		    ${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --open SCHEME_HANDLER_URL${STYLES_ALL[default]}
+		    $sep
+		    Open the scheme handler URL (file at a specified line number). Example:
+		    
+		        $SCRIPT_BIN_NAME --open "$SCHEME_HANDLER_NAME:///home/user/folder/script.sh:250"
+		    
+		    
+		    ${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --add_scheme${STYLES_ALL[default]}
+		    $sep
+		    Add the custom scheme handler "$SCHEME_HANDLER_NAME://" allowing to open files at
+		    a specific line number. The script will add it automatically if it's not installed,
+		    so it shouldn't be necessary to add it manually.
+		    
+		    
+		    ${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --rm_scheme${STYLES_ALL[default]}
+		    $sep
+		    Remove the custom scheme handler "$SCHEME_HANDLER_NAME://".
+		
+		
+		${STYLES_ALL[bold]}CONFIGURATION${STYLES_ALL[default]}
+		$sep
+		The configuration file path is "$SCRIPT_CONFIG_PATH". Here are all
+		available options:
+		
+		    ${STYLES_ALL[bold]}highlight_style${STYLES_ALL[default]}: Style of the syntax highlighting applied to results.
+		    Value by default is as follows:
+		    
+		        highlight_style=$HIGHLIGHT_STYLE
+		    
+		    To get all possible values, run the following command:
+		    
+		        $SCRIPT_BIN_NAME --list_highlight_styles
+		    
+		    
+		    ${STYLES_ALL[bold]}results_style${STYLES_ALL[default]}: Style of results found by grep. Value by default is as follows:
+		    
+		        results_style=$RESULTS_STYLE
+		    
+		    To get an overview of possibilities, run the following command:
+		    
+		        $SCRIPT_BIN_NAME --list_results_styles
+		    
+		    
+		    ${STYLES_ALL[bold]}path_relative_to_search${STYLES_ALL[default]}: If "true", the file path is displayed relative to the search
+		    emplacement. For example, if "\$(pwd)" returns "/home/user/Desktop" and the script is
+		    run to find results in "/home/user/Desktop/software", the file paths will be displayed
+		    like this:
+		    
+		        file.js
+		        subfolder/another-file.js
+		    
+		    If "false", the file path is displayed relative to the current emplacement. Example:
+		    
+		        software/file.js
+		        software/subfolder/another-file.js
+		    
+		    Default is "$DEFAULT_PATH_RELATIVE_TO_SEARCH".
+		    
+		    
+		    ${STYLES_ALL[bold]}results_separator${STYLES_ALL[default]}: Separator between file paths and results found. Default is "$DEFAULT_RESULTS_SEPARATOR".
+		    Example:
+		    
+		        path/to/file.js:250        | result lorem ipsum
+		        path/to/file.js:352        | result consectetuer lorem
+		        path/to/another/file.js:10 | result aliquet lorem quis
+		    
+		    The special word "%BOX%" means to adapt the symbol according to the results position in the
+		    list in order to have continuous lines. Example:
+		    
+		        ────────────────────────────┬────────────────────────────
+		         path/to/file.js:250        │ result lorem ipsum
+		        ────────────────────────────┼────────────────────────────
+		         path/to/file.js:352  AMET  │ result consectetuer lorem
+		        ────────────────────────────┼────────────────────────────
+		         path/to/another/file.js:10 │ result aliquet lorem quis
+		        ────────────────────────────┴────────────────────────────
+		    
+		    
+		    ${STYLES_ALL[bold]}file_path_fallback${STYLES_ALL[default]}: Useful only if the terminal used doesn't have full support
+		    for links. If "true", the script will display file paths with the scheme handler "file://".
+		    Note that opening files at a specific line number won't work if this option is enabled.
+		    
+		    Default is "$DEFAULT_FILE_PATH_FALLBACK".
+		    
+		    
+		    ${STYLES_ALL[bold]}launcher${STYLES_ALL[default]}: Command to open files at a specific line number. About 20 editors are checked
+		    on the system. All editors found will be uncommented (without the leading symbol "#")
+		    on the configuration file. Example:
+		    
+		        launcher=nano +%LINE_NUMBER% %FILE%
+		        #launcher=kwrite -l %LINE_NUMBER% %FILE%
+		        #launcher=jedit %FILE% +line:%LINE_NUMBER%
+		        launcher=gedit %FILE% +%LINE_NUMBER%
+		    
+		    A custom launcher can be specified. To do so, add a new entry at the end of the configuration
+		    file:
+		    
+		        launcher=my-custom-editor PUT_CUSTOM_OPTIONS
+		    
+	HEREDOC
+}
+
+# Get the value of a specific key in the configuration file
+get_config_value() {
+	local key=$1
+	
+	local value
+	
+	# ------------------
+	
+	if [[ -n $key ]]; then
+		value=$(grep -oP "^$key=\K.+" "$SCRIPT_CONFIG_PATH" | tail -n 1 | perl -pe "s/(.+?)\s*#.*/\1/")
+	fi
+	
+	echo -n "$value"
+}
+
+# Create the configuration file
+init_config() {
+	local config_folder content launchers sep
+	
+	declare -a separators
+	
+	# ------------------
+	
+	if [[ ! -f $SCRIPT_CONFIG_PATH ]]; then
+		config_folder="${SCRIPT_CONFIG_PATH%/*}"
+		
+		mkdir -p "$config_folder"
+		
+		if [[ ! -d $config_folder ]]; then
+			echo "Can't create the config folder \"$config_folder\"." 1>&2
+			
+			exit 1
+		fi
+		
+		# highlight_style_dark
+		content+="highlight_style_dark=${STYLES_DARK[highlight_style]}"$'\n'
+		
+		# highlight_style_light
+		content+="highlight_style_light=${STYLES_LIGHT[highlight_style]}"$'\n'
+		
+		# results_style_dark
+		
+		if [[ ${STYLES_GREP_FORMAT_DARK[results]} != "0;1;32" ]]; then
+			content+="results_style_dark=0;1;32 # Without background color"$'\n'
+		fi
+		
+		if [[ ${STYLES_GREP_FORMAT_DARK[results]} != "0;42;97" ]]; then
+			content+="results_style_dark=0;42;97 # With background color"$'\n'
+		fi
+		
+		content+="results_style_dark=${STYLES_GREP_FORMAT_DARK[results]}"$'\n'
+		
+		# results_style_light
+		
+		if [[ ${STYLES_GREP_FORMAT_LIGHT[results]} != "0;1;2;92" ]]; then
+			content+="results_style_light=0;1;2;92 # Without background color"$'\n'
+		fi
+		
+		if [[ ${STYLES_GREP_FORMAT_LIGHT[results]} != "0;42;97" ]]; then
+			content+="results_style_light=0;42;97 # With background color"$'\n'
+		fi
+		
+		if [[ ${STYLES_GREP_FORMAT_LIGHT[results]} != "0;1;102" ]]; then
+			content+="results_style_light=0;1;102 # With background color (lighter)"$'\n'
+		fi
+		
+		content+="results_style_light=${STYLES_GREP_FORMAT_LIGHT[results]}"$'\n'
+		
+		# path_relative_to_search
+		content+="path_relative_to_search=$DEFAULT_PATH_RELATIVE_TO_SEARCH"$'\n'
+		
+		# results_separator
+		
+		separators=("│" "|" "·" "🮥" ">" "→" "🭮🭬")
+		
+		for sep in "${separators[@]}"; do
+			if [[ $sep != "$DEFAULT_RESULTS_SEPARATOR" ]]; then
+				content+="#results_separator=$sep"$'\n'
+			fi
+		done
+		
+		content+="results_separator=$DEFAULT_RESULTS_SEPARATOR"$'\n'
+		
+		# add_horizontal_separator
+		content+="add_horizontal_separator=$DEFAULT_ADD_HORIZONTAL_SEPARATOR"$'\n'
+		
+		# file_path_fallback
+		content+="file_path_fallback=$DEFAULT_FILE_PATH_FALLBACK"$'\n'
+		
+		# lancher
+		
+		if ! type -p vim > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="vim %FILE% +%LINE_NUMBER%"$'\n'
+		
+		if ! type -p vi > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="vi %FILE% +%LINE_NUMBER%"$'\n'
+		
+		if ! type -p nano > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="nano +%LINE_NUMBER% %FILE%"$'\n'
+		
+		if ! type -p micro > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="micro -parsecursor true %FILE%:%LINE_NUMBER%"$'\n'
+		
+		if ! type -p emacsclient > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="emacsclient +%LINE_NUMBER% %FILE%"$'\n'
+		
+		if ! type -p scite > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="scite %FILE% -goto:%LINE_NUMBER%"$'\n'
+		
+		if ! type -p qtcreator > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="qtcreator %FILE% +%LINE_NUMBER%"$'\n'
+		
+		if ! type -p pluma > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="pluma %FILE% +%LINE_NUMBER%"$'\n'
+		
+		if ! type -p notepadqq > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="notepadqq -l %LINE_NUMBER% %FILE%"$'\n'
+		
+		if ! type -p kwrite > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="kwrite -l %LINE_NUMBER% %FILE%"$'\n'
+		
+		if ! type -p kile > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="kile --line %LINE_NUMBER% %FILE%"$'\n'
+		
+		if ! type -p kate > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="kate -l %LINE_NUMBER% %FILE%"$'\n'
+		
+		if ! type -p jedit > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="jedit %FILE% +line:%LINE_NUMBER%"$'\n'
+		
+		if ! type -p gvim > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="gvim %FILE% +%LINE_NUMBER%"$'\n'
+		
+		if ! type -p gedit > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="gedit %FILE% +%LINE_NUMBER%"$'\n'
+		
+		if ! type -p geany > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="geany +%LINE_NUMBER% %FILE%"$'\n'
+		
+		if ! type -p eclipse > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="eclipse %FILE%:%LINE_NUMBER%"$'\n'
+		
+		if ! type -p code > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="code -g %FILE%:%LINE_NUMBER%"$'\n'
+		
+		if ! type -p atom > /dev/null; then
+			launchers+="#"
+		fi
+		
+		launchers+="atom %FILE%:%LINE_NUMBER%"
+		
+		content+=$(echo -n "$launchers" | sed -E "s/^(#)?/\1launcher=/")$'\n'
+		
+		echo -n "$content" >> "$SCRIPT_CONFIG_PATH"
+		
+		if [[ ! -f $SCRIPT_CONFIG_PATH ]]; then
+			echo "Can't create the config file \"$SCRIPT_CONFIG_PATH\"." 1>&2
+			
+			exit 1
+		fi
+	fi
+}
+
+# List all highlight styles
+list_highlight_styles() {
+	local sample sep syntax
+	
+	# ------------------
+	
+	sep="${STYLES_ALL[bold]}###########################${STYLES_ALL[default]}"
+	sample="var transform = get_tr(data.abc, arg2 = {\"id\": \"12da5e1f\"}, arg3 = 150, arg4 = data.def(\"Lorem ipsum\"), arg5 = [\"item1\"]); // Comment"
+	syntax="js"
+	
+	while IFS= read -r theme; do
+		echo "$sep"
+		echo "${STYLES_ALL[bold]}# THEME \"$theme\"${STYLES_ALL[default]}"
+		echo "$sep"
+		echo "$sample" | highlight --force -O xterm256 -s "$theme" -S "$syntax"
+		echo
+	done < <(find /usr/share/highlight/themes -type f -name '*.theme' -exec basename {} .theme \; | sort)
+	
+}
+
+# List all results styles
+list_results_styles() {
+	for i in 1 2 3 4 7 9; do
+		for j in {30..37} {40..47} {90..97} {100..107}; do
+			((k++))
+			echo -en "\033[${i};${j}m$i;$j$(tput sgr0 2> /dev/null)\t"
+			
+			if ((k > 9)); then
+				echo; k=0
+			fi
+		done
+		
+		echo
+	done
+}
+
+# Open the scheme handler URL
+open_url() {
+	local scheme_handler_url=$1
+	
+	local arg err_msg file_path fp_and_ln line_number sed_replacement_fp sed_replacement_ln
+	declare -a command
+	declare -a launcher
+	
+	# ------------------
+	
+	if [[ $scheme_handler_url =~ ^"$SCHEME_HANDLER_NAME://" ]]; then
+		fp_and_ln=${scheme_handler_url#"$SCHEME_HANDLER_NAME://"}
+		file_path=$(decode_url "${fp_and_ln%:*}")
+		line_number=$(decode_url "${fp_and_ln##*:}")
+		
+		if [[ ! -f $file_path ]]; then
+			echo "The file \"$file_path\" doesn't exist." 1>&2
+			
+			exit 1
+		fi
+		
+		launcher=("${LAUNCHER[@]}")
+		
+		if [[ -z ${launcher[*]} ]]; then
+			err_msg="No launcher found in \"$SCRIPT_CONFIG_PATH\"."$'\n'
+			err_msg+="Ignoring the line number and trying to open the file with default system settings."
+			
+			echo "$err_msg" 1>&2
+			
+			launcher=("xdg-open" "%FILE%")
+		fi
+		
+		sed_replacement_fp=$(sed_escape_replacement "$file_path")
+		
+		if [[ -n $line_number ]]; then
+			sed_replacement_ln=$(sed_escape_replacement "$line_number")
+		fi
+		
+		for arg in "${launcher[@]}"; do
+			if [[ $arg =~ "%FILE%" ]]; then
+				arg=$(echo -n "$arg" | sed -E "s/%FILE%/$sed_replacement_fp/g")
+			fi
+			
+			if [[ $arg =~ "%LINE_NUMBER%" ]]; then
+				arg=$(echo -n "$arg" | sed -E "s/%LINE_NUMBER%/$sed_replacement_ln/g")
+			fi
+			
+			command+=("$arg")
+		done
+		
+		"${command[@]}" &
+	else
+		err_msg="The scheme handler URL \"$scheme_handler_url\" is invalid."$'\n'
+		err_msg+="Trying to open the URL with default system settings."
+		
+		echo "$err_msg" 1>&2
+		
+		xdg-open "$scheme_handler_url"
+	fi
+}
+
+# Remove the custom scheme handler
+rm_scheme() {
+	rm "$SCHEME_HANDLER_DESKTOP_FILE_PATH"
+	update-desktop-database "$SYS_SHARE_PATH/applications"
+	update-mime-database "$SYS_SHARE_PATH/mime"
+}
+
+# Install the script
+run_install() {
+	local current_path err_msg
+	
+	# ------------------
+	
+	current_path=$(realpath "$0")
+	
+	if [[ $current_path == "$SCRIPT_BIN_PATH" ]]; then
+		err_msg="Trying to install \"$SCRIPT_BIN_NAME\" from the already installed version. The installer must be run explicitely"$'\n'
+		err_msg+="from the version you want to install. For example, if you downloaded \"$SCRIPT_BIN_NAME\" in your user folder,"$'\n'
+		err_msg+="specify the absolute path to the script like this:"$'\n'$'\n'
+		err_msg+="    $HOME/$SCRIPT_BIN_NAME --install"$'\n'
+		
+		echo "$err_msg" 1>&2
+		
+		exit 1
+	fi
+	
+	cp "$current_path" "$SCRIPT_BIN_PATH"
+	
+	if [[ ! -f $SCRIPT_BIN_PATH ]]; then
+		echo "Can't install \"$SCRIPT_BIN_NAME\" in \"$SCRIPT_BIN_PATH\"." 1>&2
+		
+		exit 1
+	fi
+	
+	if [[ ! -x $SCRIPT_BIN_PATH ]]; then
+		chmod u+x "$SCRIPT_BIN_PATH"
+		
+		if [[ ! -x $SCRIPT_BIN_PATH ]]; then
+			echo "\"$SCRIPT_BIN_PATH\" is not executable." 1>&2
+			
+			exit 1
+		fi
+	fi
+}
+
+# Search the expression specified in the first argument. The search emplacement can be
+# specified in the second argument. If it's empty, the current emplacement will be used.
+search() {
+	local expression=$1
+	local emplacement=$2
+	
+	local current_emplacement current_line emplacement_displayed file_ext file_ext_arg file_info file_link
+	local file_path hor_sep i line line_number longest_file_info nb_chars_hor_sep nb_levels nb_spaces prefix_spaces
+	local prefix_width prefix_width_replacement result results results_sep result_width scheme_handler_url
+	local sed_pattern sed_replacement spaces term_width tmp_results
+	
+	# ------------------
+	
+	if [[ -n $emplacement ]]; then
+		emplacement=$(realpath "$emplacement")
+	fi
+	
+	current_emplacement=$(realpath "$(pwd)")
+	
+	if [[ ! -f $emplacement && ! -d $emplacement ]]; then
+		emplacement=$current_emplacement
+	fi
+	
+	if [[ $current_emplacement != "/" ]]; then
+		sed_pattern=$(sed_escape_pattern "$current_emplacement/")
+		emplacement=$(echo -n "$emplacement" | sed -E "s/^$sed_pattern?(.*)/\1/")
+		
+		if [[ $emplacement =~ ^"/" && $current_emplacement =~ ^"$emplacement/" ]]; then
+			sed_pattern=$(sed_escape_pattern "$emplacement")
+			nb_levels=$(echo -n "$current_emplacement" | sed -E "s/^$sed_pattern(.*)/\1/" | tr -dc '/' | awk '{print length}')
+			
+			if ((nb_levels > 0)); then
+				emplacement=""
+				
+				for ((i = 0; i < nb_levels; i++)); do
+					emplacement+="../"
+				done
+			fi
+		fi
+	fi
+	
+	if [[ -z $emplacement ]]; then
+		emplacement="."
+	fi
+	
+	GREP_COLORS="mt=$RESULTS_STYLE:ms=$RESULTS_STYLE:mc=$RESULTS_STYLE"
+	export GREP_COLORS
+	
+	tmp_results=$(grep --color=never -HInPr "$expression" "$emplacement" 2> /dev/null)
+	
+	if [[ -z $tmp_results ]]; then
+		results="No results found."$'\n'
+	else
+		longest_file_info=0
+		
+		while IFS= read -r line; do
+			file_info=$(echo "$line" | perl -ne 'print "$1" if /^(.+?:[1-9][0-9]*):.+/')
+			
+			if ((${#file_info} > longest_file_info)); then
+				longest_file_info=${#file_info}
+			fi
+		done <<< "$tmp_results"
+		
+		if [[ $RESULTS_SEPARATOR == "%BOX%" ]]; then
+			results_sep="│"
+		else
+			results_sep=$RESULTS_SEPARATOR
+		fi
+		
+		current_line=1
+		term_width=$(tput cols 2> /dev/null)
+		
+		while IFS= read -r line; do
+			file_info=$(echo "$line" | perl -ne 'print "$1" if /^(.+?:[1-9][0-9]*):.+/')
+			file_path=${file_info%:*}
+			file_ext=${file_path##*.}
+			
+			if [[ $file_ext == "$file_path" ]]; then
+				file_ext=""
+			fi
+			
+			if [[ -n $file_ext ]]; then
+				file_ext_arg="-S $file_ext"
+			fi
+			
+			nb_spaces=$((longest_file_info - ${#file_info} + 1))
+			spaces=$(printf " %.0s" $(seq "$nb_spaces"))
+			line_number=${file_info##*:}
+			
+			if [[ $FILE_PATH_FALLBACK == true ]]; then
+				emplacement_displayed="file://$(realpath "$file_path")"
+				file_link="$emplacement_displayed "
+			else
+				if [[ $PATH_RELATIVE_TO_SEARCH == true ]]; then
+					emplacement_displayed=$(realpath "$file_path")
+					emplacement_displayed=${emplacement_displayed#"$(realpath "$emplacement")/"}
+				else
+					emplacement_displayed=$file_path
+					
+					if [[ $emplacement_displayed =~ ^"$HOME/" ]]; then
+						emplacement_displayed="\$HOME/${emplacement_displayed#"$HOME/"}"
+					fi
+				fi
+				
+				scheme_handler_url="$SCHEME_HANDLER_NAME://$(realpath "${file_path}"):${line_number}"
+				file_link=$(echo -e "\u001B]8;;")
+				file_link+=$scheme_handler_url
+				file_link+=$(echo -e "\u0007")
+				file_link+=$emplacement_displayed
+				file_link+=$(echo -e "\u001B]8;;\u0007")
+			fi
+			
+			prefix_width=$((${#emplacement_displayed} + ${#LINE_NUMBER_SEP} + ${#line_number} + nb_spaces + 1))
+			prefix_width_replacement=$((prefix_width + 1))
+			prefix_spaces=$(printf " %.0s" $(seq "$prefix_width_replacement"))
+			result_width=$((term_width - prefix_width - ${#results_sep} - 1))
+			sed_replacement=$(sed_escape_replacement "${STYLES[results_sep]}${results_sep}${STYLES_ALL[default]}")
+			
+			# shellcheck disable=SC2086
+			result=$(echo -n "$line" | perl -ne 'print " $1" if /^.+?:[1-9][0-9]*:\s*(.+)/' | \
+				     highlight --force -O xterm256 -s "$HIGHLIGHT_STYLE" $file_ext_arg -J "$result_width" -W | \
+				     perl -pe "s#\n#\n$prefix_spaces#g" | \
+				     sed -E 's#\s*$##' | \
+				     sed "2,\$s/./$sed_replacement/$prefix_width_replacement")
+			
+			# ANSI codes from syntax highlighting can mess with grep search. For example, if the user searches
+			# "document\.create" and different syntax highlighting styles are applied to "document", "." and "create",
+			# ANSI codes (color) between these words will prevent grep from finding the pattern searched by the user.
+			# If we manage to include optional ANSI codes between all words searched, we would find the pattern.
+			# Example:
+			# 
+			#     ansi_code_group='(?:\e[\[\(][0-9;]*[mGKFB])*'
+			#     test_style=$'\033[0;42;97m'
+			#     default_style=$(tput sgr0 2> /dev/null)
+			#     echo "var abc = document.createElement('abc');" | \
+			#         highlight -s darkspectrum -S js -O xterm256 | \
+			#         perl -pe "s#$ansi_code_group(document)$ansi_code_group(\.)$ansi_code_group(create)#$test_style\1\2\3$default_style#"
+			# 
+			result=$(echo -n "$result" | grep --color=always -IP "$expression|$" 2> /dev/null)
+			
+			if [[ $ADD_HORIZONTAL_SEPARATOR == true ]]; then
+				if ((term_width > 0)); then
+					hor_sep=${STYLES[hor_sep]}
+					
+					if [[ $RESULTS_SEPARATOR == "%BOX%" ]]; then
+						nb_chars_hor_sep=$prefix_width
+						
+						if [[ $FILE_PATH_FALLBACK == true ]]; then
+							nb_chars_hor_sep=$((nb_chars_hor_sep + 1))
+						fi
+						
+						hor_sep+=$(printf "─%.0s" $(seq "$nb_chars_hor_sep"))
+						
+						if [[ $current_line == 1 ]]; then
+							hor_sep+="┬"
+						else
+							hor_sep+="┼"
+						fi
+						
+						nb_chars_hor_sep=$((term_width - nb_chars_hor_sep - 1))
+					else
+						nb_chars_hor_sep=$term_width
+					fi
+					
+					hor_sep+=$(printf "─%.0s" $(seq "$nb_chars_hor_sep"))
+					hor_sep+=${STYLES_ALL[default]}
+					hor_sep+=$'\n'
+				fi
+			fi
+			
+			results+=$hor_sep
+			results+=" "
+			results+="${STYLES[file_path]}${file_link}${STYLES_ALL[default]}"
+			results+="${STYLES[ln_sep]}${LINE_NUMBER_SEP}${STYLES_ALL[default]}"
+			results+="${STYLES[line_number]}${line_number}${STYLES_ALL[default]}"
+			results+=${spaces}
+			results+="${STYLES[results_sep]}${results_sep}${STYLES_ALL[default]}"
+			results+=$result
+			results+=$'\n'
+			
+			current_line=$((current_line + 1))
+		done <<< "$tmp_results"
+		
+		hor_sep=${hor_sep/"┼"/"┴"}
+		
+		results=$'\n'$results$hor_sep$'\n'
+	fi
+	
+	echo -n "$results"
+}
+
+# Escape the first argument to be used in a sed pattern
+sed_escape_pattern() {
+	echo -n "$1" | sed -e 's/[]\/$*.^[]/\\&/g'
+}
+
+# Escape the first argument to be used in a sed replacement
+sed_escape_replacement() {
+	echo -n "$1" | sed -e 's/[\/&]/\\&/g'
+}
+
+# Return the terminal color - background (by default) or foreground - in hexadecimal
+# by default (ex.: "ff ff ff") or in decimal (ex.: "255 255 255") if the second argument
+# equals "dec". Examples:
+# 
+#     terminal_color # background in hexadecimal
+#     terminal_color foreground # foreground in hexadecimal
+#     terminal_color foreground dec # foreground in decimal
+# 
+terminal_color() {
+	local style=$1
+	local base=$2
+	
+	local bg blue_bg color current_stty green_bg raw_bg red_bg style_code
+	
+	# ------------------
+	
+	style_code=10
+	
+	if [[ $style != "foreground" ]]; then
+		style="background"
+		style_code=11
+	fi
+	
+	if [[ $base != "dec" ]]; then
+		base="hexa"
+	fi
+	
+	exec < /dev/tty
+	current_stty=$(stty -g)
+	stty raw -echo min 0
+	echo -en "\033]${style_code};?\033\\" > /dev/tty
+	
+	# shellcheck disable=SC1003
+	if IFS=';' read -r -d '\' raw_bg; then
+		bg=$(echo "$raw_bg" | sed 's/^.*\;//;s/[^rgb:0-9a-f/]//g')
+		bg=${bg#*:}
+		
+		red_bg=${bg%%/*}
+		red_bg=${red_bg:0:2}
+		
+		if [[ $base == "dec" ]]; then
+			red_bg=$((0x$red_bg))
+		fi
+		
+		green_bg=$(echo -n "$bg" | cut -d '/' -f 2)
+		green_bg=${green_bg:0:2}
+		
+		if [[ $base == "dec" ]]; then
+			green_bg=$((0x$green_bg))
+		fi
+		
+		blue_bg=${bg##*/}
+		blue_bg=${blue_bg:0:2}
+		
+		if [[ $base == "dec" ]]; then
+			blue_bg=$((0x$blue_bg))
+		fi
+		
+		color="$red_bg $green_bg $blue_bg"
+	fi
+	
+	stty "$current_stty"
+	
+	echo -n "$color"
+}
+
+################################################################################
+# CHECKS
+################################################################################
+
+# Check if the script is installed
+if [[ ! -f $SCRIPT_BIN_PATH && $1 != "--install" ]]; then
+	run_install
+fi
+
+# Check if the configuration file exists
+if [[ ! -f $SCRIPT_CONFIG_PATH ]]; then
+	init_config
+fi
+
+# Check if the scheme handler exists
+if [[ ! -f $SCHEME_HANDLER_DESKTOP_FILE_PATH && $1 != "--add_scheme" ]]; then
+	add_scheme
+fi
+
+# Check if the syntax highlighter is installed
+if ! type -p highlight > /dev/null; then
+	echo "The package \"highlight\" must be installed (ex.: sudo apt-get install highlight)." 1>&2
+	
+	exit 1
+fi
+
+IS_SEARCH=false
+
+if [[ $1 == "--force_search" || \
+      (-n $1 && ! $1 =~ ^"--"("add_scheme"|"install"|"list_highlight_styles"|"list_results_styles"|"open"|"rm_scheme")$) ]]; then
+	IS_SEARCH=true
+fi
+
+declare -r IS_SEARCH
+
+if [[ $IS_SEARCH == true ]]; then
+	# BACKGROUND_STYLE
+	BACKGROUND_STYLE=$(background_style)
+	declare -r BACKGROUND_STYLE
+	
+	# STYLES
+	
+	declare -A STYLES
+	
+	if [[ $BACKGROUND_STYLE == "dark" ]]; then
+		for style_key in "${!STYLES_DARK[@]}"; do
+			STYLES[$style_key]=${STYLES_DARK[$style_key]}
+		done
+	else
+		for style_key in "${!STYLES_LIGHT[@]}"; do
+			STYLES[$style_key]=${STYLES_LIGHT[$style_key]}
+		done
+	fi
+	
+	declare -r STYLES
+	
+	# STYLES_GREP_FORMAT
+	
+	declare -A STYLES_GREP_FORMAT
+	
+	if [[ $BACKGROUND_STYLE == "dark" ]]; then
+		for style_key in "${!STYLES_GREP_FORMAT_DARK[@]}"; do
+			STYLES_GREP_FORMAT[$style_key]=${STYLES_GREP_FORMAT_DARK[$style_key]}
+		done
+	else
+		for style_key in "${!STYLES_GREP_FORMAT_LIGHT[@]}"; do
+			STYLES_GREP_FORMAT[$style_key]=${STYLES_GREP_FORMAT_LIGHT[$style_key]}
+		done
+	fi
+	
+	declare -r STYLES_GREP_FORMAT
+	
+	# HIGHLIGHT_STYLE
+	
+	HIGHLIGHT_STYLE=""
+	
+	if [[ -f $SCRIPT_CONFIG_PATH ]]; then
+		
+		HIGHLIGHT_STYLE=$(get_config_value "highlight_style_$BACKGROUND_STYLE")
+	fi
+	
+	if [[ -z $HIGHLIGHT_STYLE || ! -f "/usr/share/highlight/themes/$HIGHLIGHT_STYLE.theme" ]]; then
+		echo "The highlight style \"$HIGHLIGHT_STYLE\" is invalid. Applying the default style."  1>&2
+		HIGHLIGHT_STYLE=${STYLES[highlight_style]}
+	fi
+	
+	declare -r HIGHLIGHT_STYLE
+	
+	# RESULTS_STYLE
+	
+	RESULTS_STYLE=""
+	
+	if [[ -f $SCRIPT_CONFIG_PATH ]]; then
+		RESULTS_STYLE=$(get_config_value "results_style_$BACKGROUND_STYLE")
+	fi
+	
+	if [[ -z $RESULTS_STYLE || ! $RESULTS_STYLE =~ ^[0-9]+(";"[0-9]+)*$ ]]; then
+		echo "The results style \"$RESULTS_STYLE\" is invalid. Applying the default style."  1>&2
+		RESULTS_STYLE=${STYLES_GREP_FORMAT[results]}
+	fi
+	
+	declare -r RESULTS_STYLE
+fi
+
+# PATH_RELATIVE_TO_SEARCH
+
+PATH_RELATIVE_TO_SEARCH=""
+
+if [[ -f $SCRIPT_CONFIG_PATH ]]; then
+	PATH_RELATIVE_TO_SEARCH=$(get_config_value "path_relative_to_search")
+fi
+
+if [[ ! $PATH_RELATIVE_TO_SEARCH =~ ^(true|false)$ ]]; then
+	PATH_RELATIVE_TO_SEARCH=$DEFAULT_PATH_RELATIVE_TO_SEARCH
+fi
+
+declare -r PATH_RELATIVE_TO_SEARCH
+
+# RESULTS_SEPARATOR
+
+RESULTS_SEPARATOR=""
+
+if [[ -f $SCRIPT_CONFIG_PATH ]]; then
+	RESULTS_SEPARATOR=$(get_config_value "results_separator")
+fi
+
+if [[ -z $RESULTS_SEPARATOR ]]; then
+	RESULTS_SEPARATOR=$DEFAULT_RESULTS_SEPARATOR
+fi
+
+declare -r RESULTS_SEPARATOR
+
+# ADD_HORIZONTAL_SEPARATOR
+
+ADD_HORIZONTAL_SEPARATOR=""
+
+if [[ -f $SCRIPT_CONFIG_PATH ]]; then
+	ADD_HORIZONTAL_SEPARATOR=$(get_config_value "add_horizontal_separator")
+fi
+
+if [[ ! $ADD_HORIZONTAL_SEPARATOR =~ ^(true|false)$ ]]; then
+	ADD_HORIZONTAL_SEPARATOR=$DEFAULT_ADD_HORIZONTAL_SEPARATOR
+fi
+
+declare -r ADD_HORIZONTAL_SEPARATOR
+
+# FILE_PATH_FALLBACK
+
+FILE_PATH_FALLBACK=""
+
+if [[ -f $SCRIPT_CONFIG_PATH ]]; then
+	FILE_PATH_FALLBACK=$(get_config_value "file_path_fallback")
+fi
+
+if [[ ! $FILE_PATH_FALLBACK =~ ^(true|false)$ ]]; then
+	FILE_PATH_FALLBACK=$DEFAULT_DEFAULT_FILE_PATH_FALLBACK
+fi
+
+declare -r FILE_PATH_FALLBACK
+
+# LAUNCHER
+
+declare -a LAUNCHER
+
+if [[ -f $SCRIPT_CONFIG_PATH ]]; then
+	IFS=" " read -r -a LAUNCHER <<< "$(get_config_value "launcher")"
+fi
+
+declare -r LAUNCHER
+
+################################################################################
+# ARGUMENTS
+################################################################################
+
+if [[ $IS_SEARCH == true ]]; then
+	if [[ $1 == "--force_search" ]]; then
+		if [[ -z $2 ]]; then
+			echo "The search pattern is not specified." 1>&2
+			
+			exit 1
+		fi
+		
+		search "$2" "$3"
+	elif [[ -n $1 ]]; then
+		search "$1" "$2"
+	fi
+
+# List all highlight_styles
+elif [[ $1 == "--list_highlight_styles" ]]; then
+	list_highlight_styles
+
+# List all results_styles
+elif [[ $1 == "--list_results_styles" ]]; then
+	list_results_styles
+
+# Install the script
+elif [[ $1 == "--install" ]]; then
+	run_install
+
+# Add the custom scheme handler
+elif [[ $1 == "--add_scheme" ]]; then
+	add_scheme
+
+# Delete the custom scheme handler
+elif [[ $1 == "--rm_scheme" ]]; then
+	rm_scheme
+
+# Open the scheme handler URL
+elif [[ $1 == "--open" ]]; then
+	if [[ -z $2 ]]; then
+		echo "The scheme handler URL is not specified." 1>&2
+		
+		exit 1
+	fi
+	
+	open_url "$2"
+
+# Help
+else
+	display_help
+fi
