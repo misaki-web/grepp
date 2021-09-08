@@ -6,22 +6,26 @@ Syntax highlighting is adjusted automatically according to the terminal backgrou
 
 # Installation
 
-Download the script and run it to create the default configuration file (`$HOME/.config/grep+/config.ini`) and to copy the script in the default binary emplacement for the current user (`$HOME/.local/bin` by default):
+Download the script and run it to create the default configuration file (`$HOME/.config/grep+/config.ini`) and make a copy in the default binary emplacement for the current user (`$HOME/.local/bin` by default):
 
-	wget "https://raw.githubusercontent.com/misa-ki/grep+/main/grep+"
-	grep+
+	wget "https://raw.githubusercontent.com/misa-ki/grepp/main/grep%2B"
+	bash grep+
 
 # Usage and help
 
+The simplest invocation is `grep+ SEARCHED`. A search will be performed in the current emplacement. It's possible to specify the emplacement:
+
+	grep+ SEARCHED /path/to/folder
+
 A detailed explanation of commands and settings is displayed when the script is invoked without arguments (`grep+`).
 
-Note that depending on your terminal settings, you may have to hold the `Ctrl` key while clicking on the link.
+*Note: depending on your terminal settings, you may have to hold the `Ctrl` key while clicking on the link to open the file.*
 
 ## Dependencies
 
-`grep+` is developed on Ubuntu with Bash 5 with the multilayouts terminal [Tilix](https://github.com/gnunn1/tilix).
-
 The package `highlight` must be installed.
+
+`grep+` is developed on Ubuntu with Bash 5 with the multilayouts terminal [Tilix](https://github.com/gnunn1/tilix).
 
 ## Scheme handler
 
