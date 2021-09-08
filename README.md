@@ -48,23 +48,31 @@ If your terminal doesn't support custom links, you can enable the link fallback 
 
 ### Default dark style
 
-TODO
+![Default dark style](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/default-dark.png)
 
 ### Default light style
 
-TODO
+![Default light style](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/default-light.png)
 
 ## More examples
 
-Here are a few examples of different styles after changing settings in the configuration file.
+Here are a few examples of different styles after changing settings in the `grep+` configuration file.
 
-### More examples for the dark style
+### Dark compact style 1
 
-TODO
+![Dark compact style 1](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/dark-compact-1.png)
 
-### More examples for the light style
+### Dark compact style 2
 
-TODO
+![Dark compact style 2](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/dark-compact-2.png)
+
+### Light compact style 1
+
+![Light compact style 1](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/light-compact-1.png)
+
+### Light compact style 2
+
+![Light compact style 2](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/light-compact-2.png)
 
 # License
 
