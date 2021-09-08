@@ -44,6 +44,8 @@ If your terminal doesn't support custom links, you can enable the link fallback 
 
 # Screenshots
 
+*Note: in all examples, the searched term is `HARDCODED_INI`.*
+
 ## Default style
 
 ### Default dark style
@@ -56,7 +58,7 @@ If your terminal doesn't support custom links, you can enable the link fallback 
 
 ## More examples
 
-Here are a few examples of different styles after changing settings in the `grep+` configuration file.
+Here are a few examples of different styles after changing settings and color highlighting in the `grep+` configuration file.
 
 ### Dark compact style 1
 
