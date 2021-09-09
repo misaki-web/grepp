@@ -4,7 +4,7 @@
 # has a clickable link to the file at the specific result line number and has syntax
 # highlighting applied to the entire result line.
 # 
-# Run `grep+` without arguments to display help. See the file `README.md` for more details.
+# Run `grep+ -h` to display help. See the file `README.md` for more details.
 # 
 # Copyright (C) 2021  Misaki F. <https://github.com/misa-ki/grepp>
 # 
@@ -204,21 +204,21 @@ display_help() {
 		
 		    $SCRIPT_BIN_NAME "\bdeclare\b"
 		
-		To disable regular expression, start the search expression with `g+nore:`:
+		To disable regular expression, start the search expression with "g+nore:":
 		
 		    $SCRIPT_BIN_NAME "g+nore:declare"
 		
-		To limit results to one occurrence per file, start the search expression with `g+one:`:
+		To limit results to one occurrence per file, start the search expression with "g+one:":
 		
 		    $SCRIPT_BIN_NAME "g+one:declare"
 		
 		In order to speed up search, binary files and the following folders from control version applications
 		are excluded from search:
 		
-		- `.bzr` from GNU Bazaar
-		- `.git` from Git
-		- `.hg` from Mercurial
-		- `.svn` from Apache Subversion
+		- ".bzr" from GNU Bazaar
+		- ".git" from Git
+		- ".hg" from Mercurial
+		- ".svn" from Apache Subversion
 		
 		
 		${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --install${STYLES_ALL[default]}
@@ -1029,7 +1029,7 @@ declare -r REGEX_SEARCH
 IS_SEARCH=false
 
 if [[ $FORCE_SEARCH == true || \
-      (-n $arg1 && ! $arg1 =~ ^("--add_scheme"|"--install"|"--list_highlight_styles"|"--list_results_styles"|"--open"|"--rm_scheme")$) ]]; then
+      (-n $arg1 && ! $arg1 =~ ^("--add_scheme"|"-h"|"--help"|"--install"|"--list_highlight_styles"|"--list_results_styles"|"--open"|"--rm_scheme")$) ]]; then
 	IS_SEARCH=true
 fi
 

@@ -38,7 +38,7 @@ In order to speed up search, binary files and the following folders from control
 - `.hg` from Mercurial
 - `.svn` from Apache Subversion
 
-A detailed explanation of commands and settings is displayed when the script is invoked without arguments (`grep+`). Help output is also accessible in the file [help.md](https://github.com/misa-ki/grepp/blob/main/help.md).
+A detailed explanation of commands and settings is displayed when running (`grep+ -h`). Help output is also accessible in the file [help.md](https://github.com/misa-ki/grepp/blob/main/help.md).
 
 *Note: depending on your terminal settings, you may have to hold the `Ctrl` key while clicking on the link to open the file.*
 
