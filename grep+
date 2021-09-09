@@ -212,6 +212,10 @@ display_help() {
 		
 		    $SCRIPT_BIN_NAME "g+one:declare"
 		
+		To invoke several "g+" options, include them in alphabetical order. Example:
+		
+		    $SCRIPT_BIN_NAME "g+force:g+nore:g+one:expression searched"
+		
 		In order to speed up search, binary files and the following folders from control version applications
 		are excluded from search:
 		
@@ -715,10 +719,11 @@ search() {
 	local expression=$1
 	local emplacement=$2
 	
-	local current_emplacement current_line emplacement_displayed file_ext file_ext_arg file_info file_link
-	local file_path grep_args hor_sep i line line_number longest_file_info nb_chars_hor_sep nb_levels
-	local nb_spaces prefix_spaces prefix_width prefix_width_replacement result results results_sep
-	local result_width scheme_handler_url sed_pattern sed_replacement spaces term_width tmp_results
+	local current_emplacement current_line emplacement_displayed expression_escaped expression_searched file_ext
+	local file_ext_arg file_info file_link file_path hor_sep i line line_number longest_file_info nb_chars_hor_sep nb_levels
+	local nb_spaces prefix_spaces prefix_width prefix_width_replacement result results results_sep result_truncated result_width
+	local scheme_handler_url sed_pattern sed_replacement spaces term_width tmp_results
+	declare -a grep_args
 	
 	# ------------------
 	
@@ -757,20 +762,38 @@ search() {
 	GREP_COLORS="mt=$RESULTS_STYLE:ms=$RESULTS_STYLE:mc=$RESULTS_STYLE"
 	export GREP_COLORS
 	
+	expression_escaped=$(echo -n "$expression" | sed 's/[][\.|$(){}?+*^]/\\&/g')
+	
+	grep_args+=(
+		--color=never
+		--exclude-dir=".bzr" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn"
+		-H -I -n -r
+	)
+	
 	if [[ $REGEX_SEARCH == true ]]; then
-		grep_args+=" -P"
+		grep_args+=(-P)
 	fi
 	
 	if [[ $ONE_OCCURRENCE == true ]]; then
-		grep_args+=" -m 1"
+		grep_args+=(-m 1)
+	fi
+	tmp_results=$(grep  "${grep_args[@]}" -- "$expression" "$emplacement" 2> /dev/null)
+	result_truncated=false
+	
+	if ((${#tmp_results} > 500)); then
+		result_truncated=true
+		
+		if [[ $REGEX_SEARCH == true ]]; then
+			expression_searched=$expression
+		else
+			expression_searched=$expression_escaped
+		fi
+		
+		tmp_results=$(grep "${grep_args[@]}" -oP "(^| ).{0,250}$expression_searched.{0,250}( |$)" "$emplacement" 2> /dev/null)
 	fi
 	
-	tmp_results=$(grep --color=never \
-	              --exclude-dir=".bzr" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" \
-	              -HInr $grep_args "$expression" "$emplacement" 2> /dev/null)
-	
 	if [[ -z $tmp_results ]]; then
-		results="No results found."$'\n'
+		results="No results found for the expression \"$expression\" in the emplacement \"$emplacement\"."$'\n'
 	else
 		longest_file_info=0
 		
@@ -837,9 +860,15 @@ search() {
 			result_width=$((term_width - prefix_width - ${#results_sep} - 1))
 			sed_replacement=$(sed_escape_replacement "${STYLES[results_sep]}${results_sep}${STYLES_ALL[default]}")
 			
+			
+			result=$(echo -n "$line" | perl -ne 'print " $1" if /^.+?:[1-9][0-9]*:\s*(.+)/')
+			
+			if [[ $result_truncated == true ]]; then
+				result="[...] $(echo -n "$result" | perl -pe "s/^\s*(.*?)\s*$/\1/") [...]"
+			fi
+			
 			# shellcheck disable=SC2086
-			result=$(echo -n "$line" | perl -ne 'print " $1" if /^.+?:[1-9][0-9]*:\s*(.+)/' | \
-			         highlight --force -O xterm256 -s "$HIGHLIGHT_STYLE" $file_ext_arg -J "$result_width" -W | \
+			result=$(echo -n "$result" | highlight --force -O xterm256 -s "$HIGHLIGHT_STYLE" $file_ext_arg -J "$result_width" -V | \
 			         perl -pe "s#\n#\n$prefix_spaces#g" | \
 			         sed -E 's#\s*$##' | \
 			         sed "2,\$s/./$sed_replacement/$prefix_width_replacement")
@@ -857,7 +886,14 @@ search() {
 			#         highlight -s darkspectrum -S js -O xterm256 | \
 			#         perl -pe "s#$ansi_code_group(document)$ansi_code_group(\.)$ansi_code_group(create)#$test_style\1\2\3$default_style#"
 			# 
-			result=$(echo -n "$result" | grep --color=always -IP "$expression|$" 2> /dev/null)
+			
+			if [[ $REGEX_SEARCH == true ]]; then
+				expression_searched=$expression
+			else
+				expression_searched=$expression_escaped
+			fi
+			
+			result=$(echo -n "$result" | grep --color=always -IP -- "$expression_searched|$" 2> /dev/null)
 			
 			if [[ $ADD_HORIZONTAL_SEPARATOR == true ]]; then
 				if ((term_width > 0)); then
@@ -1008,15 +1044,6 @@ fi
 
 declare -r FORCE_SEARCH
 
-ONE_OCCURRENCE=false
-
-if [[ $arg1 =~ ^"g+one:" ]]; then
-	ONE_OCCURRENCE=true
-	arg1=${arg1#"g+one:"}
-fi
-
-declare -r ONE_OCCURRENCE
-
 REGEX_SEARCH=true
 
 if [[ $arg1 =~ ^"g+nore:" ]]; then
@@ -1025,6 +1052,15 @@ if [[ $arg1 =~ ^"g+nore:" ]]; then
 fi
 
 declare -r REGEX_SEARCH
+
+ONE_OCCURRENCE=false
+
+if [[ $arg1 =~ ^"g+one:" ]]; then
+	ONE_OCCURRENCE=true
+	arg1=${arg1#"g+one:"}
+fi
+
+declare -r ONE_OCCURRENCE
 
 IS_SEARCH=false
 

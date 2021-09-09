@@ -31,6 +31,14 @@ To limit results to one occurrence per file, start the search expression with `g
 
 	grep+ "g+one:declare"
 
+To invoke several "g+" options, include them in alphabetical order. Example:
+
+	grep+ "g+force:g+nore:g+one:expression searched"
+
+Results that are too long are truncated and enclosed with "[...]". Example:
+
+	/path/to/file:150 | [...] pharetra ut, malesuada et, magna class aptent taciti litora [...]
+
 In order to speed up search, binary files and the following folders from control version applications are excluded from search:
 
 - `.bzr` from GNU Bazaar
