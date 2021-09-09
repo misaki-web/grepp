@@ -17,7 +17,7 @@ The simplest invocation is `grep+ SEARCHED`. A search will be performed in the c
 
 	grep+ SEARCHED /path/to/folder
 
-A detailed explanation of commands and settings is displayed when the script is invoked without arguments (`grep+`). Help output is also saved in the file [help.txt](https://raw.githubusercontent.com/misa-ki/grepp/main/help.txt).
+A detailed explanation of commands and settings is displayed when the script is invoked without arguments (`grep+`). Help output is also accessible in the file [help.md](https://raw.githubusercontent.com/misa-ki/grepp/main/help.md).
 
 *Note: depending on your terminal settings, you may have to hold the `Ctrl` key while clicking on the link to open the file.*
 
