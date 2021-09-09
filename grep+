@@ -51,7 +51,7 @@ declare -r SCRIPT_CONFIG_PATH
 
 # Help
 
-HELP_PATH=$(dirname -- "$(realpath "$0")")/help.txt
+HELP_PATH=$(dirname -- "$(realpath "$0")")/help.md
 declare -r HELP_PATH
 
 # Scheme handler
@@ -172,7 +172,8 @@ display_help() {
 	
 	# ------------------
 	
-	sep="${STYLES_ALL[bold]}-----------------------------------------------------------------${STYLES_ALL[default]}"$'\n'
+	sep1="${STYLES_ALL[bold]}=================================================================${STYLES_ALL[default]}"
+	sep2="${STYLES_ALL[bold]}-----------------------------------------------------------------${STYLES_ALL[default]}"
 	
 	cat <<- HEREDOC
 		$SCRIPT_BIN_NAME performes grep searches while improving results display. Each result is aligned,
@@ -180,99 +181,106 @@ display_help() {
 		highlighting applied to the entire line.
 		
 		${STYLES_ALL[bold]}USAGE${STYLES_ALL[default]}
-		$sep
+		$sep1
+		
 		Type one of the following commands:
 		
-		    ${STYLES_ALL[bold]}$SCRIPT_BIN_NAME SEARCH_PATTERN [EMPLACEMENT]${STYLES_ALL[default]}
-		    $sep
-		    SEARCH_PATTERN can be a regular expression pattern. EMPLACEMENT can be a folder for
-		    recursive search or a specific file. If it's empty, the current folder returned by
-		    the command "pwd" will be used. Example:
-		    
-		        $SCRIPT_BIN_NAME "^function abc_[0-9]+_def\s*\(" "/path/to/folder"
-		    
-		    If you want to search a pattern starting with a $SCRIPT_BIN_NAME parameter (like "--install"),
-		    the optional parameter "--force_search" can be used. Example:
-		    
-		        $SCRIPT_BIN_NAME --force_search "--install" "/path/to/folder"
-		    
-		    
-		    ${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --install${STYLES_ALL[default]}
-		    $sep
-		    Add $SCRIPT_BIN_NAME in the local bin folder. The script will add it automatically if it's not
-		    installed, so it shouldn't be necessary to install it manually.
-		    
-		    
-		    ${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --open SCHEME_HANDLER_URL${STYLES_ALL[default]}
-		    $sep
-		    Open the scheme handler URL (file at a specified line number). Example:
-		    
-		        $SCRIPT_BIN_NAME --open "$SCHEME_HANDLER_NAME:///home/user/folder/script.sh:250"
-		    
-		    
-		    ${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --add_scheme${STYLES_ALL[default]}
-		    $sep
-		    Add the custom scheme handler "$SCHEME_HANDLER_NAME://" allowing to open files at
-		    a specific line number. The script will add it automatically if it's not installed,
-		    so it shouldn't be necessary to add it manually.
-		    
-		    
-		    ${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --rm_scheme${STYLES_ALL[default]}
-		    $sep
-		    Remove the custom scheme handler "$SCHEME_HANDLER_NAME://".
+		${STYLES_ALL[bold]}$SCRIPT_BIN_NAME SEARCH_PATTERN [EMPLACEMENT]${STYLES_ALL[default]}
+		$sep2
+		
+		SEARCH_PATTERN can be a regular expression pattern. EMPLACEMENT can be a folder for
+		recursive search or a specific file. If it's empty, the current folder returned by
+		the command "pwd" will be used. Example:
+		
+		    $SCRIPT_BIN_NAME "^function abc_[0-9]+_def\s*\(" "/path/to/folder"
+		
+		If you want to search a pattern starting with a $SCRIPT_BIN_NAME parameter (like "--install"),
+		the optional parameter "--force_search" can be used. Example:
+		
+		    $SCRIPT_BIN_NAME --force_search "--install" "/path/to/folder"
+		
+		
+		${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --install${STYLES_ALL[default]}
+		$sep2
+		
+		Add $SCRIPT_BIN_NAME in the local bin folder. The script will add it automatically if it's not
+		installed, so it shouldn't be necessary to install it manually.
+		
+		
+		${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --open SCHEME_HANDLER_URL${STYLES_ALL[default]}
+		$sep2
+		
+		Open the scheme handler URL (file at a specified line number). Example:
+		
+		    $SCRIPT_BIN_NAME --open "$SCHEME_HANDLER_NAME:///home/user/folder/script.sh:250"
+		
+		
+		${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --add_scheme${STYLES_ALL[default]}
+		$sep2
+		
+		Add the custom scheme handler "$SCHEME_HANDLER_NAME://" allowing to open files at
+		a specific line number. The script will add it automatically if it's not installed,
+		so it shouldn't be necessary to add it manually.
+		
+		
+		${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --rm_scheme${STYLES_ALL[default]}
+		$sep2
+		
+		Remove the custom scheme handler "$SCHEME_HANDLER_NAME://".
 		
 		
 		${STYLES_ALL[bold]}CONFIGURATION${STYLES_ALL[default]}
-		$sep
+		$sep1
+		
 		The configuration file path is "$SCRIPT_CONFIG_PATH". Here are all
 		available options:
 		
-		    ${STYLES_ALL[bold]}highlight_style${STYLES_ALL[default]}: Style of the syntax highlighting applied to results.
-		    Value by default is as follows:
-		    
+		- ${STYLES_ALL[bold]}highlight_style${STYLES_ALL[default]}: Style of the syntax highlighting applied to results.
+		  Value by default is as follows:
+		
 		        highlight_style=$HIGHLIGHT_STYLE
-		    
-		    To get all possible values, run the following command:
-		    
+		
+		  To get all possible values, run the following command:
+		
 		        $SCRIPT_BIN_NAME --list_highlight_styles
-		    
-		    
-		    ${STYLES_ALL[bold]}results_style${STYLES_ALL[default]}: Style of results found by grep. Value by default is
-		    as follows:
-		    
+		
+		
+		- ${STYLES_ALL[bold]}results_style${STYLES_ALL[default]}: Style of results found by grep. Value by default is
+		  as follows:
+		
 		        results_style=$RESULTS_STYLE
-		    
-		    To get an overview of possibilities, run the following command:
-		    
+		
+		  To get an overview of possibilities, run the following command:
+		
 		        $SCRIPT_BIN_NAME --list_results_styles
-		    
-		    
-		    ${STYLES_ALL[bold]}path_relative_to_search${STYLES_ALL[default]}: If "true", the file path is displayed relative
-		    to the search emplacement. For example, if "\$(pwd)" returns "/home/user/Desktop" and
-		    the script is run to find results in "/home/user/Desktop/software", the file paths will
-		    be displayed like this:
-		    
+		
+		
+		- ${STYLES_ALL[bold]}path_relative_to_search${STYLES_ALL[default]}: If "true", the file path is displayed relative
+		  to the search emplacement. For example, if "\$(pwd)" returns "/home/user/Desktop" and
+		  the script is run to find results in "/home/user/Desktop/software", the file paths will
+		  be displayed like this:
+		
 		        file.js
 		        subfolder/another-file.js
-		    
-		    If "false", the file path is displayed relative to the current emplacement. Example:
-		    
+		
+		  If "false", the file path is displayed relative to the current emplacement. Example:
+		
 		        software/file.js
 		        software/subfolder/another-file.js
-		    
-		    Default is "$DEFAULT_PATH_RELATIVE_TO_SEARCH".
-		    
-		    
-		    ${STYLES_ALL[bold]}results_separator${STYLES_ALL[default]}: Separator between file paths and results found. Default
-		    is "$DEFAULT_RESULTS_SEPARATOR". Example:
-		    
+		
+		  Default is "$DEFAULT_PATH_RELATIVE_TO_SEARCH".
+		
+		
+		- ${STYLES_ALL[bold]}results_separator${STYLES_ALL[default]}: Separator between file paths and results found. Default
+		  is "$DEFAULT_RESULTS_SEPARATOR". Example:
+		
 		        path/to/file.js:250        | result lorem ipsum
 		        path/to/file.js:352        | result consectetuer lorem
 		        path/to/another/file.js:10 | result aliquet lorem quis
-		    
-		    The special word "%BOX%" means to adapt the symbol according to the results position in
-		    the list in order to have continuous lines. Example:
-		    
+		
+		  The special word "%BOX%" means to adapt the symbol according to the results position in
+		  the list in order to have continuous lines. Example:
+		
 		        ────────────────────────────┬────────────────────────────
 		         path/to/file.js:250        │ result lorem ipsum
 		        ────────────────────────────┼────────────────────────────
@@ -280,29 +288,29 @@ display_help() {
 		        ────────────────────────────┼────────────────────────────
 		         path/to/another/file.js:10 │ result aliquet lorem quis
 		        ────────────────────────────┴────────────────────────────
-		    
-		    
-		    ${STYLES_ALL[bold]}file_path_fallback${STYLES_ALL[default]}: Useful only if the terminal used doesn't have full support
-		    for links. If "true", the script will display file paths with the scheme handler "file://".
-		    Note that opening files at a specific line number won't work if this option is enabled.
-		    
-		    Default is "$DEFAULT_FILE_PATH_FALLBACK".
-		    
-		    
-		    ${STYLES_ALL[bold]}launcher${STYLES_ALL[default]}: Command to open files at a specific line number. About 20 editors are
-		    checked on the system. All editors found will be uncommented (without the leading symbol "#")
-		    on the configuration file. Example:
-		    
+		
+		
+		- ${STYLES_ALL[bold]}file_path_fallback${STYLES_ALL[default]}: Useful only if the terminal used doesn't have full support
+		  for links. If "true", the script will display file paths with the scheme handler "file://".
+		  Note that opening files at a specific line number won't work if this option is enabled.
+		
+		  Default is "$DEFAULT_FILE_PATH_FALLBACK".
+		
+		
+		- ${STYLES_ALL[bold]}launcher${STYLES_ALL[default]}: Command to open files at a specific line number. About 20 editors are
+		  checked on the system. All editors found will be uncommented (without the leading symbol "#")
+		  on the configuration file. Example:
+		
 		        launcher=nano +%LINE_NUMBER% %FILE%
 		        #launcher=kwrite -l %LINE_NUMBER% %FILE%
 		        #launcher=jedit %FILE% +line:%LINE_NUMBER%
 		        launcher=gedit %FILE% +%LINE_NUMBER%
-		    
-		    A custom launcher can be specified. To do so, add a new entry at the end of the configuration
-		    file:
-		    
+		
+		  A custom launcher can be specified. To do so, add a new entry at the end of the configuration
+		  file:
+		
 		        launcher=my-custom-editor PUT_CUSTOM_OPTIONS
-		    
+		
 	HEREDOC
 }
 
@@ -667,7 +675,17 @@ run_install() {
 
 # Save help in a text file
 save_help() {
-	display_help | sed 's,\x1B[[(][0-9;]*[a-zA-Z],,g' > "$HELP_PATH"
+	local add_ln
+	
+	# ------------------
+	
+	add_ln=false
+	
+	if [[ $add_ln == true ]]; then
+		display_help | sed 's,\x1B[[(][0-9;]*[a-zA-Z],,g' | nl -b'a' -n'rn' -s' | ' -w'3' > "$HELP_PATH"
+	else
+		display_help | sed 's,\x1B[[(][0-9;]*[a-zA-Z],,g' > "$HELP_PATH"
+	fi
 }
 
 # Search the expression specified in the first argument. The search emplacement can be
@@ -790,10 +808,10 @@ search() {
 			
 			# shellcheck disable=SC2086
 			result=$(echo -n "$line" | perl -ne 'print " $1" if /^.+?:[1-9][0-9]*:\s*(.+)/' | \
-				     highlight --force -O xterm256 -s "$HIGHLIGHT_STYLE" $file_ext_arg -J "$result_width" -W | \
-				     perl -pe "s#\n#\n$prefix_spaces#g" | \
-				     sed -E 's#\s*$##' | \
-				     sed "2,\$s/./$sed_replacement/$prefix_width_replacement")
+			         highlight --force -O xterm256 -s "$HIGHLIGHT_STYLE" $file_ext_arg -J "$result_width" -W | \
+			         perl -pe "s#\n#\n$prefix_spaces#g" | \
+			         sed -E 's#\s*$##' | \
+			         sed "2,\$s/./$sed_replacement/$prefix_width_replacement")
 			
 			# ANSI codes from syntax highlighting can mess with grep search. For example, if the user searches
 			# "document\.create" and different syntax highlighting styles are applied to "document", "." and "create",
