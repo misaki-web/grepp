@@ -38,6 +38,28 @@ Example:
 	url="grep+:///home/user/Desktop/script.js:150"
 	xdg-open "$url"
 
+`grep+` will try to open the file at the specified line number, searching for a supported editor installed on the system and running it with the right arguments (for example `gedit /path/to/file +150`). Editors searched are the following:
+
+- atom
+- code (Visual Studio Code)
+- eclipse
+- emacs/emacsclient
+- geany
+- gedit
+- gvim
+- jedit
+- kate
+- kile
+- kwrite
+- micro
+- nano
+- notepadqq
+- pluma
+- qtcreator
+- scite
+- vi
+- vim
+
 ## Terminals without link support
 
 If your terminal doesn't support custom links, you can enable the link fallback in the configuration file. However, it will disable line number support.
