@@ -208,7 +208,12 @@ display_help() {
 		
 		    $SCRIPT_BIN_NAME "g+nore:declare"
 		
-		To speed up search, binary files and the following folders from control version applications are excluded from search:
+		To limit results to one occurrence per file, start the search expression with `g+one:`:
+		
+		    $SCRIPT_BIN_NAME "g+one:declare"
+		
+		In order to speed up search, binary files and the following folders from control version applications
+		are excluded from search:
 		
 		- `.bzr` from GNU Bazaar
 		- `.git` from Git
@@ -711,7 +716,7 @@ search() {
 	local emplacement=$2
 	
 	local current_emplacement current_line emplacement_displayed file_ext file_ext_arg file_info file_link
-	local file_path grep_regex_arg hor_sep i line line_number longest_file_info nb_chars_hor_sep nb_levels
+	local file_path grep_args hor_sep i line line_number longest_file_info nb_chars_hor_sep nb_levels
 	local nb_spaces prefix_spaces prefix_width prefix_width_replacement result results results_sep
 	local result_width scheme_handler_url sed_pattern sed_replacement spaces term_width tmp_results
 	
@@ -753,12 +758,16 @@ search() {
 	export GREP_COLORS
 	
 	if [[ $REGEX_SEARCH == true ]]; then
-		grep_regex_arg="-P"
+		grep_args+=" -P"
+	fi
+	
+	if [[ $ONE_OCCURRENCE == true ]]; then
+		grep_args+=" -m 1"
 	fi
 	
 	tmp_results=$(grep --color=never \
 	              --exclude-dir=".bzr" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" \
-	              -HInr $grep_regex_arg "$expression" "$emplacement" 2> /dev/null)
+	              -HInr $grep_args "$expression" "$emplacement" 2> /dev/null)
 	
 	if [[ -z $tmp_results ]]; then
 		results="No results found."$'\n'
@@ -981,8 +990,57 @@ terminal_color() {
 # CHECKS
 ################################################################################
 
+########################################
+# CHECKS: ARGUMENTS
+########################################
+
+arg1=$1
+arg2=$2
+
+# Check if search is invoked
+
+FORCE_SEARCH=false
+
+if [[ $arg1 =~ ^"g+force:" ]]; then
+	FORCE_SEARCH=true
+	arg1=${arg1#"g+force:"}
+fi
+
+declare -r FORCE_SEARCH
+
+ONE_OCCURRENCE=false
+
+if [[ $arg1 =~ ^"g+one:" ]]; then
+	ONE_OCCURRENCE=true
+	arg1=${arg1#"g+one:"}
+fi
+
+declare -r ONE_OCCURRENCE
+
+REGEX_SEARCH=true
+
+if [[ $arg1 =~ ^"g+nore:" ]]; then
+	REGEX_SEARCH=false
+	arg1=${arg1#"g+nore:"}
+fi
+
+declare -r REGEX_SEARCH
+
+IS_SEARCH=false
+
+if [[ $FORCE_SEARCH == true || \
+      (-n $arg1 && ! $arg1 =~ ^("--add_scheme"|"--install"|"--list_highlight_styles"|"--list_results_styles"|"--open"|"--rm_scheme")$) ]]; then
+	IS_SEARCH=true
+fi
+
+declare -r IS_SEARCH
+
+########################################
+# CHECKS: INSTALLATION AND CONFIG
+########################################
+
 # Check if the script is installed
-if [[ ! -f $SCRIPT_BIN_PATH && $1 != "--install" ]]; then
+if [[ ! -f $SCRIPT_BIN_PATH && $arg1 != "--install" ]]; then
 	run_install
 fi
 
@@ -992,9 +1050,13 @@ if [[ ! -f $SCRIPT_CONFIG_PATH ]]; then
 fi
 
 # Check if the scheme handler exists
-if [[ ! -f $SCHEME_HANDLER_DESKTOP_FILE_PATH && $1 != "--add_scheme" ]]; then
+if [[ ! -f $SCHEME_HANDLER_DESKTOP_FILE_PATH && $arg1 != "--add_scheme" ]]; then
 	add_scheme
 fi
+
+########################################
+# CHECKS: DEPENDENCIES
+########################################
 
 # Check if the syntax highlighter is installed
 if ! type -p highlight > /dev/null; then
@@ -1003,14 +1065,9 @@ if ! type -p highlight > /dev/null; then
 	exit 1
 fi
 
-IS_SEARCH=false
-
-if [[ $1 == "--force_search" || \
-      (-n $1 && ! $1 =~ ^"--"("add_scheme"|"install"|"list_highlight_styles"|"list_results_styles"|"open"|"rm_scheme")$) ]]; then
-	IS_SEARCH=true
-fi
-
-declare -r IS_SEARCH
+########################################
+# CHECKS: STYLE
+########################################
 
 if [[ $IS_SEARCH == true ]]; then
 	# BACKGROUND_STYLE
@@ -1137,7 +1194,9 @@ fi
 
 declare -r FILE_PATH_FALLBACK
 
-# LAUNCHER
+########################################
+# CHECKS: LAUNCHER
+########################################
 
 declare -a LAUNCHER
 
@@ -1147,9 +1206,9 @@ fi
 
 declare -r LAUNCHER
 
-################################################################################
-# ENVIRONMENT VARIABLES
-################################################################################
+########################################
+# CHECKS: ENVIRONMENT VARIABLES
+########################################
 
 if [[ $GREPP_SH == true ]]; then
 	save_help
@@ -1158,60 +1217,42 @@ if [[ $GREPP_SH == true ]]; then
 fi
 
 ################################################################################
-# ARGUMENTS
+# SCRIPT
 ################################################################################
 
-REGEX_SEARCH=true
-
-if [[ $1 =~ ^"g+nore:" ]]; then
-	REGEX_SEARCH=false
-	set -- "${@::1}" "${1#"g+nore:"}" "${@:2}"
-fi
-
-declare -r REGEX_SEARCH
-
+# Search
 if [[ $IS_SEARCH == true ]]; then
-	if [[ $1 == "--force_search" ]]; then
-		if [[ -z $2 ]]; then
-			echo "The search pattern is not specified." 1>&2
-			
-			exit 1
-		fi
-		
-		search "$2" "$3"
-	elif [[ -n $1 ]]; then
-		search "$1" "$2"
-	fi
+	search "$arg1" "$arg2"
 
 # List all highlight_styles
-elif [[ $1 == "--list_highlight_styles" ]]; then
+elif [[ $arg1 == "--list_highlight_styles" ]]; then
 	list_highlight_styles
 
 # List all results_styles
-elif [[ $1 == "--list_results_styles" ]]; then
+elif [[ $arg1 == "--list_results_styles" ]]; then
 	list_results_styles
 
 # Install the script
-elif [[ $1 == "--install" ]]; then
+elif [[ $arg1 == "--install" ]]; then
 	run_install
 
 # Add the custom scheme handler
-elif [[ $1 == "--add_scheme" ]]; then
+elif [[ $arg1 == "--add_scheme" ]]; then
 	add_scheme
 
 # Delete the custom scheme handler
-elif [[ $1 == "--rm_scheme" ]]; then
+elif [[ $arg1 == "--rm_scheme" ]]; then
 	rm_scheme
 
 # Open the scheme handler URL
-elif [[ $1 == "--open" ]]; then
-	if [[ -z $2 ]]; then
+elif [[ $arg1 == "--open" ]]; then
+	if [[ -z $arg2 ]]; then
 		echo "The scheme handler URL is not specified." 1>&2
 		
 		exit 1
 	fi
 	
-	open_url "$2"
+	open_url "$arg2"
 
 # Help
 else

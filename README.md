@@ -27,7 +27,11 @@ To disable regular expression, start the search expression with `g+nore:`:
 
 	grep+ "g+nore:declare"
 
-To speed up search, binary files and the following folders from control version applications are excluded from search:
+To limit results to one occurrence per file, start the search expression with `g+one:`:
+
+	grep+ "g+one:declare"
+
+In order to speed up search, binary files and the following folders from control version applications are excluded from search:
 
 - `.bzr` from GNU Bazaar
 - `.git` from Git
