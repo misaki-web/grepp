@@ -19,6 +19,13 @@ The simplest invocation is `grep+ SEARCHED`. A search will be performed in the c
 
 	grep+ SEARCHED /path/to/folder
 
+The following folders from control version applications are excluded from search:
+
+- `.bzr` from GNU Bazaar
+- `.git` from Git
+- `.hg` from Mercurial
+- `.svn` from Apache Subversion
+
 A detailed explanation of commands and settings is displayed when the script is invoked without arguments (`grep+`). Help output is also accessible in the file [help.md](https://github.com/misa-ki/grepp/blob/main/help.md).
 
 *Note: depending on your terminal settings, you may have to hold the `Ctrl` key while clicking on the link to open the file.*

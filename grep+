@@ -199,6 +199,13 @@ display_help() {
 		
 		    $SCRIPT_BIN_NAME --force_search "--install" "/path/to/folder"
 		
+		The following folders from control version applications are excluded from search:
+		
+		- `.bzr` from GNU Bazaar
+		- `.git` from Git
+		- `.hg` from Mercurial
+		- `.svn` from Apache Subversion
+		
 		
 		${STYLES_ALL[bold]}$SCRIPT_BIN_NAME --install${STYLES_ALL[default]}
 		$sep2
@@ -736,7 +743,9 @@ search() {
 	GREP_COLORS="mt=$RESULTS_STYLE:ms=$RESULTS_STYLE:mc=$RESULTS_STYLE"
 	export GREP_COLORS
 	
-	tmp_results=$(grep --color=never -HInPr "$expression" "$emplacement" 2> /dev/null)
+	tmp_results=$(grep --color=never \
+	              --exclude-dir=".bzr" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" \
+	              -HInPr "$expression" "$emplacement" 2> /dev/null)
 	
 	if [[ -z $tmp_results ]]; then
 		results="No results found."$'\n'
