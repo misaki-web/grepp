@@ -199,6 +199,11 @@ display_help() {
 		
 		    $SCRIPT_BIN_NAME --force_search "--install" "/path/to/folder"
 		
+		Regular expressions can be used. For example, to search the exact word "declare" and exclude
+		"undeclare", "declared", etc.:
+		
+		    $SCRIPT_BIN_NAME "\bdeclare\b"
+		
 		The following folders from control version applications are excluded from search:
 		
 		- `.bzr` from GNU Bazaar

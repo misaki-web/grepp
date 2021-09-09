@@ -19,6 +19,10 @@ The simplest invocation is `grep+ SEARCHED`. A search will be performed in the c
 
 	grep+ SEARCHED /path/to/folder
 
+Regular expressions can be used. For example, to search the exact word "declare" and exclude "undeclare", "declared", etc.:
+
+	grep+ "\bdeclare\b"
+
 The following folders from control version applications are excluded from search:
 
 - `.bzr` from GNU Bazaar
