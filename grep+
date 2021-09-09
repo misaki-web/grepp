@@ -163,7 +163,16 @@ background_style() {
 
 # Decode the scheme handler URL specified in the first argument
 decode_url() {
-	python -c "import sys, urllib as ul; print ul.unquote_plus(sys.argv[1])" "$1"
+	local url=$1
+	
+	local url_decoded
+	
+	# ------------------
+	
+	url_decoded=${url//+/ }
+	url_decoded=$(printf "%b" "${url_decoded//%/\\x}")
+	
+	echo -n "$url_decoded"
 }
 
 # Display help
