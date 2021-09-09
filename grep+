@@ -199,12 +199,16 @@ display_help() {
 		
 		    $SCRIPT_BIN_NAME --force_search "--install" "/path/to/folder"
 		
-		Regular expressions can be used. For example, to search the exact word "declare" and exclude
+		Regular expressions are used by default. For example, to search the exact word "declare" and exclude
 		"undeclare", "declared", etc.:
 		
 		    $SCRIPT_BIN_NAME "\bdeclare\b"
 		
-		The following folders from control version applications are excluded from search:
+		To disable regular expression, start the search expression with `g+nore:`:
+		
+		    $SCRIPT_BIN_NAME "g+nore:declare"
+		
+		To speed up search, binary files and the following folders from control version applications are excluded from search:
 		
 		- `.bzr` from GNU Bazaar
 		- `.git` from Git
@@ -707,9 +711,9 @@ search() {
 	local emplacement=$2
 	
 	local current_emplacement current_line emplacement_displayed file_ext file_ext_arg file_info file_link
-	local file_path hor_sep i line line_number longest_file_info nb_chars_hor_sep nb_levels nb_spaces prefix_spaces
-	local prefix_width prefix_width_replacement result results results_sep result_width scheme_handler_url
-	local sed_pattern sed_replacement spaces term_width tmp_results
+	local file_path grep_regex_arg hor_sep i line line_number longest_file_info nb_chars_hor_sep nb_levels
+	local nb_spaces prefix_spaces prefix_width prefix_width_replacement result results results_sep
+	local result_width scheme_handler_url sed_pattern sed_replacement spaces term_width tmp_results
 	
 	# ------------------
 	
@@ -748,9 +752,13 @@ search() {
 	GREP_COLORS="mt=$RESULTS_STYLE:ms=$RESULTS_STYLE:mc=$RESULTS_STYLE"
 	export GREP_COLORS
 	
+	if [[ $REGEX_SEARCH == true ]]; then
+		grep_regex_arg="-P"
+	fi
+	
 	tmp_results=$(grep --color=never \
 	              --exclude-dir=".bzr" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" \
-	              -HInPr "$expression" "$emplacement" 2> /dev/null)
+	              -HInr $grep_regex_arg "$expression" "$emplacement" 2> /dev/null)
 	
 	if [[ -z $tmp_results ]]; then
 		results="No results found."$'\n'
@@ -1152,6 +1160,15 @@ fi
 ################################################################################
 # ARGUMENTS
 ################################################################################
+
+REGEX_SEARCH=true
+
+if [[ $1 =~ ^"g+nore:" ]]; then
+	REGEX_SEARCH=false
+	set -- "${@::1}" "${1#"g+nore:"}" "${@:2}"
+fi
+
+declare -r REGEX_SEARCH
 
 if [[ $IS_SEARCH == true ]]; then
 	if [[ $1 == "--force_search" ]]; then
