@@ -21,6 +21,31 @@ the optional parameter "--force_search" can be used. Example:
 
     grep+ --force_search "--install" "/path/to/folder"
 
+Regular expressions are used by default. For example, to search the exact word "declare" and exclude
+"undeclare", "declared", etc.:
+
+    grep+ "\bdeclare\b"
+
+To disable regular expression, start the search expression with "g+nore:":
+
+    grep+ "g+nore:declare"
+
+To limit results to one occurrence per file, start the search expression with "g+one:":
+
+    grep+ "g+one:declare"
+
+To invoke several "g+" options, include them in alphabetical order. Example:
+
+    grep+ "g+force:g+nore:g+one:expression searched"
+
+In order to speed up search, binary files and the following folders from control version applications
+are excluded from search:
+
+- ".bzr" from GNU Bazaar
+- ".git" from Git
+- ".hg" from Mercurial
+- ".svn" from Apache Subversion
+
 
 grep+ --install
 -----------------------------------------------------------------
