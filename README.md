@@ -1,5 +1,7 @@
 # About `grep+`
 
+![grep+](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/default-dark.png)
+
 `grep+` performes grep searches while improving results display. Each result is aligned, has a clickable link to the file at the specific result line number and has syntax highlighting applied to the entire result line.
 
 Syntax highlighting is adjusted automatically according to the terminal background detected (dark or light).
