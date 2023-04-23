@@ -998,7 +998,7 @@ terminal_color() {
 	echo -en "\033]${style_code};?\033\\" > /dev/tty
 	
 	# shellcheck disable=SC1003
-	if IFS=';' read -r -d '\' raw_bg; then
+	if IFS=';' read -r -t 1 -d '\' raw_bg; then
 		bg=$(echo "$raw_bg" | sed 's/^.*\;//;s/[^rgb:0-9a-f/]//g')
 		bg=${bg#*:}
 		
