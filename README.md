@@ -1,29 +1,31 @@
 # About `grep+`
 
-![grep+](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/default-dark.png)
+![Demo of grep+](https://raw.githubusercontent.com/misaki-web/grepp/main/assets/demo.gif)
 
-`grep+` performes grep searches while improving results display. Each result is aligned, has a clickable link to the file at the specific result line number and has syntax highlighting applied to the entire result line.
+`grep+` performs `grep` searches while improving result display. Each result is aligned, has a clickable link to the file at the specific line number, and includes syntax highlighting for the entire line.
 
-Syntax highlighting is adjusted automatically according to the terminal background detected (dark or light).
+Syntax highlighting is automatically adjusted according to the detected terminal background (dark or light).
 
-# Installation
+![grep+](https://raw.githubusercontent.com/misaki-web/grepp/main/assets/default-dark.png)
 
-Download the script and run it to create the default configuration file (`$HOME/.config/grep+/config.ini`) and make a copy in the default binary emplacement for the current user (`$HOME/.local/bin` by default):
+## Installation
 
-	wget "https://raw.githubusercontent.com/misa-ki/grepp/main/grep%2B"
+Download the script and run it to create the default configuration file (`$HOME/.config/grep+/config.ini`) and make a copy in the default binary location for the current user (`$HOME/.local/bin` by default):
+
+	wget "https://raw.githubusercontent.com/misaki-web/grepp/main/grep%2B"
 	bash grep+
 
-# Usage and help
+## Usage and help
 
-The simplest invocation is `grep+ SEARCHED`. A search will be performed in the current emplacement. It's possible to specify the emplacement:
+The simplest invocation is `grep+ SEARCHED`. A search will be performed in the current directory. You can also specify a different location:
 
 	grep+ SEARCHED /path/to/folder
 
-Regular expressions are used by default. For example, to search the exact word "declare" and exclude "undeclare", "declared", etc.:
+Regular expressions are used by default. For example, to search for the exact word "declare" and exclude "undeclare", "declared", etc.:
 
 	grep+ "\bdeclare\b"
 
-To disable regular expression, start the search expression with `g+nore:`:
+To disable regular expressions, start the search expression with `g+nore:`:
 
 	grep+ "g+nore:declare"
 
@@ -31,34 +33,34 @@ To limit results to one occurrence per file, start the search expression with `g
 
 	grep+ "g+one:declare"
 
-To invoke several "g+" options, include them in alphabetical order. Example:
+To use several "g+" options, include them in alphabetical order. Example:
 
 	grep+ "g+force:g+nore:g+one:expression searched"
 
-Results that are too long are truncated and enclosed with "[...]". Example:
+Results that are too long are truncated and enclosed in "[...]". Example:
 
 	/path/to/file:150 | [...] pharetra ut, malesuada et, magna class aptent taciti litora [...]
 
-In order to speed up search, binary files and the following folders from control version applications are excluded from search:
+To speed up the search, binary files and the following folders from version control systems are excluded:
 
 - `.bzr` from GNU Bazaar
 - `.git` from Git
 - `.hg` from Mercurial
 - `.svn` from Apache Subversion
 
-A detailed explanation of commands and settings is displayed when running (`grep+ -h`). Help output is also accessible in the file [help.md](https://github.com/misa-ki/grepp/blob/main/help.md).
+A detailed explanation of commands and settings is displayed when running `grep+ -h`. Help output is also accessible in the file [help.md](https://github.com/misaki-web/grepp/blob/main/help.md).
 
 *Note: depending on your terminal settings, you may have to hold the `Ctrl` key while clicking on the link to open the file.*
 
-## Dependencies
+### Dependencies
 
-The package `highlight` must be installed.
+The `highlight` package must be installed.
 
-`grep+` is developed on Ubuntu with Bash 5 with the multilayouts terminal [Tilix](https://github.com/gnunn1/tilix).
+`grep+` is developed on Ubuntu using Bash 5 with the multi-layout terminal [Tilix](https://github.com/gnunn1/tilix).
 
-## Scheme handler
+### Scheme handler
 
-A custom scheme handler is created in order to open files at a specific line number. Examples of scheme handlers are `https://`, `file://`, etc. The script will create the scheme handler `grep+`, so any URL with the following format will be handled by `grep+`:
+A custom scheme handler is created to open files at a specific line number. Examples of scheme handlers include `https://`, `file://`, etc. This script creates the `grep+` scheme handler, so any URL with the following format will be handled by `grep+`:
 
 	grep+://FILE:LINE_NUMBER
 
@@ -67,12 +69,12 @@ Example:
 	url="grep+:///home/user/Desktop/script.js:150"
 	xdg-open "$url"
 
-`grep+` will try to open the file at the specified line number, searching for a supported editor installed on the system and running it with the right arguments (for example `gedit /path/to/file +150`). Editors searched are the following:
+`grep+` will attempt to open the file at the specified line number, looking for a supported editor installed on the system and running it with the appropriate arguments (e.g., `gedit /path/to/file +150`). Supported editors include:
 
 - atom
 - code (Visual Studio Code)
 - eclipse
-- emacs/emacsclient
+- emacs / emacsclient
 - geany
 - gedit
 - gvim
@@ -89,47 +91,47 @@ Example:
 - vi
 - vim
 
-## Terminals without link support
+### Terminals without link support
 
-If your terminal doesn't support custom links, you can enable the link fallback in the configuration file. However, it will disable line number support.
+If your terminal doesn't support custom links, you can enable the link fallback in the configuration file. However, this disables line number support.
 
-# Screenshots
+## Screenshots
 
 *Note: in all examples, the searched term is `HARDCODED_INI`.*
 
-## Default style
+### Default style
 
-### Default dark style
+#### Default dark style
 
-![Default dark style](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/default-dark.png)
+![Default dark style](https://raw.githubusercontent.com/misaki-web/grepp/main/assets/default-dark.png)
 
-### Default light style
+#### Default light style
 
-![Default light style](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/default-light.png)
+![Default light style](https://raw.githubusercontent.com/misaki-web/grepp/main/assets/default-light.png)
 
-## More examples
+### More examples
 
 Here are a few examples of different styles after changing settings and color highlighting in the `grep+` configuration file.
 
-### Dark compact style 1
+#### Dark compact style 1
 
-![Dark compact style 1](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/dark-compact-1.png)
+![Dark compact style 1](https://raw.githubusercontent.com/misaki-web/grepp/main/assets/dark-compact-1.png)
 
-### Dark compact style 2
+#### Dark compact style 2
 
-![Dark compact style 2](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/dark-compact-2.png)
+![Dark compact style 2](https://raw.githubusercontent.com/misaki-web/grepp/main/assets/dark-compact-2.png)
 
-### Light compact style 1
+#### Light compact style 1
 
-![Light compact style 1](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/light-compact-1.png)
+![Light compact style 1](https://raw.githubusercontent.com/misaki-web/grepp/main/assets/light-compact-1.png)
 
-### Light compact style 2
+#### Light compact style 2
 
-![Light compact style 2](https://raw.githubusercontent.com/misa-ki/grepp/main/assets/light-compact-2.png)
+![Light compact style 2](https://raw.githubusercontent.com/misaki-web/grepp/main/assets/light-compact-2.png)
 
-# License
+## License
 
-Copyright (C) 2021  Misaki F. <https://github.com/misa-ki/grepp>
+Copyright (C) 2021  Misaki F. <https://github.com/misaki-web>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
