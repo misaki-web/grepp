@@ -6,8 +6,6 @@
 
 Syntax highlighting is automatically adjusted according to the detected terminal background (dark or light).
 
-![grep+](https://raw.githubusercontent.com/misaki-web/grepp/main/assets/default-dark.png)
-
 ## Installation
 
 Download the script and run it to create the default configuration file (`$HOME/.config/grep+/config.ini`) and make a copy in the default binary location for the current user (`$HOME/.local/bin` by default):
